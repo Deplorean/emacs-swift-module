@@ -1,17 +1,17 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 import PackagePlugin
+import Foundation
 
 @main
 struct ModuleFactoryPlugin: BuildToolPlugin {
-  func createBuildCommands(context: PluginContext, target _: Target) async throws
-    -> [Command] {
-    let outputPath = context.pluginWorkDirectory.appending(
-      "ModuleInitializer.swift")
-    return try [
+  func createBuildCommands(context: PluginContext, target: Target) async throws -> [Command] {
+    let output = context.pluginWorkDirectoryURL.appending(path: "ModuleInitializer.swift")
+    return [
       .buildCommand(
-        displayName: "Module initialization injection",
-        executable: context.tool(named: "ModuleInitializerInjector").path,
-        arguments: [outputPath.string],
-        outputFiles: [outputPath]
+        displayName: "Generate Emacs module entry point",
+        executable: try context.tool(named: "ModuleInitializerInjector").url,
+        arguments: [output.path],
+        outputFiles: [output]
       )
     ]
   }

@@ -1,84 +1,68 @@
 # EmacsSwiftModule
-[![Emacs](https://img.shields.io/badge/Emacs-25.3%2B-blueviolet)](https://www.gnu.org/software/emacs/) [![Swift Compatibility](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FSavchenkoValeriy%2Femacs-swift-module%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/SavchenkoValeriy/emacs-swift-module) [![OS](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FSavchenkoValeriy%2Femacs-swift-module%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/SavchenkoValeriy/emacs-swift-module) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-A Swift library to write Emacs plugins in Swift!
+A Swift-native framework for Emacs plugins, targeting **Swift 6.4** and
+**macOS 27**. The modernization branch is under development; it is not yet a
+verified release. Work and evidence are tracked in
+[issue #5](https://github.com/Deplorean/emacs-swift-module/issues/5).
 
-## Overview
+Declare ordinary Swift commands:
 
-Emacs Swift module provides a convenient API for writing [dynamic modules for Emacs](https://www.gnu.org/software/emacs/manual/html_node/elisp/Writing-Dynamic-Modules.html) in Swift. It marries a dynamic nature of Emacs Lisp with strong static typization of Swift and hides the roughness of the original C API together with harder aspects of that language such as a lack of closures and manual memory management. It also translates Emacs Lisp errors and Swift exceptions into each other.
-
-## A Quick Tour
-
-`EmacsSwiftModule` allows you to call functions from Emacs Lisp using Swift's own types.
 ```swift
-let two: Int = try env.funcall("+", with: 1, 1)
-assert(two == 2)
-try env.funcall("message", with: "%S %S", "Hello", 42)
-```
+import EmacsSwiftModule
 
-And define your own Lisp functions out of Swift closures
-```swift
-try env.defun("foo") {
-  (x: Int, y: Int) in x + y
-}
-try env.defun("bar") {
-  (input: [String]) in input.joined(separator: ", ")
-}
-```
-that can be easily used in Emacs Lisp
-```emacs-lisp
-(foo 1 1) ;; => 2
-(bar ["Hello" "World"]) ;; => "Hello, World"
-```
-
-It handles errors on both sides so the user can almost always simply ignore them.
-```swift
-try env.defun("always-throws") { (x: Int) throws in
-  throw MyError(x: x)
-}
-try env.defun("calls-afdsiufs") {
-  (env: Environment) in
-  do {
-    try env.funcall("afdsiufs", with: 42)
-  } catch EmacsError.signal {
-    print("Whoops! It looks like 'afdsiufs' doesn't exist!")
+struct HelloPlugin: Plugin {
+  static let name = "hello-plugin"
+  static var commands: [Command] {
+    [
+      Command("swift-hello") { (name: String) -> String in
+        "Hello, \(name)!"
+      },
+      Command("swift-add") { (a: Int, b: Int) -> Int in a + b }
+    ]
   }
 }
+
+func createPlugin() -> some Plugin { HelloPlugin() }
 ```
 
-And on the Lisp side too
-```emacs-lisp
-(always-throws 42) ;; => raises (swift-error "Swift exception: MyError(x: 42)")
-(calls-afdsiufs) ;; => nil because we caught the error
+The package build plugin generates the loader entry. Plugin authors do not handle
+C pointers, Lisp values or callback registration. See
+[the example package](Examples/HelloPlugin/Package.swift) for the complete dynamic
+library and build-plugin configuration. This initial API is intentionally small
+and subject to change before release.
+
+## Build and verify
+
+Use official Xcode 27 with Swift 6.4 and a module-enabled Emacs installation on
+macOS 27. From the repository root:
+
+```sh
+bash scripts/verify-toolchain.sh
+swift build -Xswiftc -warnings-as-errors
+bash Examples/HelloPlugin/run-native-tests.sh debug
+bash Examples/HelloPlugin/run-native-tests.sh release
 ```
 
-The same happens when a type requirement expected in Swift is not met.
-```emacs-lisp
-(foo "Hello" "World") ;; => raises (wrong-type-argument numberp "Hello")
-```
+The verification gate records the compiler, SDK and OS, then compiles and runs
+language probes. The example runner builds a real dynamic library and exercises
+it in batch Emacs. A source inspection or Linux C syntax check is not a substitute
+for these commands. CI uses GitHub's `xcode-27` runner and preserves evidence.
 
-## Documentation
+## Design and status
 
-Full documentation of the package can be found here: https://savchenkovaleriy.github.io/emacs-swift-module/documentation/emacsswiftmodule/
+- [Boundary and concurrency architecture](docs/architecture.md)
+- [Official tooling research and compiler evidence](docs/toolchain-research.md)
+- [Project profile and contribution rules](docs/project-profile.md)
+- [Integration test contracts](test/Native/README.md)
 
-## Installation
+Use short-lived feature branches, Conventional Commits, linked issues and draft
+PRs. Merge only verified, independently reviewed work, using squash merges.
+Additional shared-library dependencies must come from Apple or the Swift language
+organization's GitHub repositories.
 
-### Swift Package Manager
+## License and attribution
 
-Add the following line to you package dependencies:
-
-```swift
-.package("https://github.com/SavchenkoValeriy/emacs-swift-module.git", from: "1.3.4")
-```
-
-Or add `"https://github.com/SavchenkoValeriy/emacs-swift-module.git"` directly via Xcode.
-
-## Contribute
-
-All contributions are most welcome!
-
-It might include any help: bug reports, questions on how to use it, feature suggestions, and documentation updates.
-
-## License
-
-[GPL-3.0](./LICENSE)
+[GNU GPL version 3](LICENSE), with GPL-3.0-or-later terms in applicable source files.
+This project derives from [Valeriy Savchenko's EmacsSwiftModule](https://github.com/SavchenkoValeriy/emacs-swift-module).
+Existing source notices and the Free Software Foundation's Emacs header notices
+are preserved. New implementation code carries GPL-3.0-or-later identifiers.
