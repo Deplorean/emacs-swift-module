@@ -1,0 +1,30 @@
+name: Swift 6.4 C interoperability
+on:
+  push:
+    branches: [feat/native-first-plugin]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.app/Contents/Developer
+      MACOSX_DEPLOYMENT_TARGET: '27.0'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Verify versions
+        run: |
+          test "$(sw_vers -productVersion | cut -d. -f1)" = 27
+          xcodebuild -version | head -1 | grep -Fx 'Xcode 27.0'
+          swift --version | grep -E 'Swift version 6\.4\.'
+      - name: Compile the Swift implementation of the Emacs C entry
+        run: swift build --product HelloPlugin -Xswiftc -warnings-as-errors
+      - name: Verify loader symbols
+        run: |
+          binary="$(swift build --show-bin-path)/libHelloPlugin.dylib"
+          nm -gU "$binary" | grep -E ' _emacs_module_init$'
+          nm -gU "$binary" | grep -E ' _plugin_is_GPL_compatible$'
+      - name: Run Swift Testing
+        run: swift test -Xswiftc -warnings-as-errors

@@ -1,78 +1,20 @@
-// swift-tools-version:5.5
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
+// swift-tools-version: 6.4
+// SPDX-License-Identifier: GPL-3.0-or-later
 import PackageDescription
 
 let package = Package(
-  name: "EmacsSwiftModule",
-  platforms: [.macOS(.v10_15)],
-  products: [
-    .library(
-      name: "EmacsSwiftModule",
-      targets: ["EmacsSwiftModule"]
-    ),
-    .library(
-      name: "EmacsSwiftModuleDynamic",
-      type: .dynamic,
-      targets: ["EmacsSwiftModule"]
-    ),
-    .plugin(
-      name: "ModuleFactoryPlugin",
-      targets: ["ModuleFactoryPlugin"]
-    )
-  ],
-  dependencies: [],
-  targets: [
-    .target(
-      name: "EmacsSwiftModule",
-      dependencies: ["EmacsModule"],
-      path: "Source/Swift",
-      swiftSettings: [
-        // It looks like it is a Swift compiler flag, that CMO
-        // leads to removal of some of the Emacs C definitions and
-        // linking errors as the result.
-        .unsafeFlags(["-disable-cmo"], .when(platforms: [.linux]))
-      ]
-    ),
-    .target(
-      name: "EmacsModule",
-      dependencies: [],
-      path: "Source/C",
-      publicHeadersPath: "include"
-    ),
-    .plugin(
-      name: "ModuleFactoryPlugin",
-      capability: .buildTool(),
-      dependencies: [.target(name: "ModuleInitializerInjector")]
-    ),
-    .executableTarget(
-      name: "ModuleInitializerInjector",
-      path: "Plugins",
-      exclude: ["ModuleFactoryPlugin/ModuleFactoryPlugin.swift"],
-      sources: ["ModuleInitializerInjector.swift"]
-    ),
-    .target(
-      name: "EmacsEnvMock",
-      dependencies: ["EmacsModule"],
-      path: "test/Unit/Mock/C",
-      publicHeadersPath: "include"
-    ),
-    .testTarget(
-      name: "EmacsSwiftModuleTests",
-      dependencies: ["EmacsSwiftModule", "EmacsEnvMock"],
-      path: "test",
-      exclude: ["Unit/Mock/C", "Integration/TestModule"],
-      swiftSettings: [
-        .define("LEAKS", .when(configuration: .debug)),
-        .define("DEBUG", .when(configuration: .debug)),
-        .define("RELEASE", .when(configuration: .release))
-      ]
-    )
-  ]
+    name: "EmacsSwiftModule",
+    platforms: [.macOS("27.0")],
+    products: [
+        .library(name: "EmacsSwiftModule", targets: ["EmacsSwiftModule"]),
+        .library(name: "HelloPlugin", type: .dynamic, targets: ["HelloPlugin"]),
+    ],
+    targets: [
+        .target(name: "EmacsABI", path: "Source/C", publicHeadersPath: "include"),
+        .target(name: "EmacsSwiftModule", dependencies: ["EmacsABI"], path: "Sources/EmacsSwiftModule"),
+        .target(name: "HelloPlugin", dependencies: ["EmacsSwiftModule", "ModuleLicense"], path: "Examples/HelloPlugin"),
+        .target(name: "ModuleLicense", path: "Sources/ModuleLicense", publicHeadersPath: "include"),
+        .testTarget(name: "NativePluginTests", dependencies: ["EmacsSwiftModule"], path: "Tests/NativePluginTests"),
+    ],
+    swiftLanguageModes: [.v6]
 )
-
-#if swift(>=5.6)
-  package.dependencies.append(
-    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")
-  )
-#endif
