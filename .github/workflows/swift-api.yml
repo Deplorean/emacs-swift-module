@@ -1,0 +1,24 @@
+name: Swift API
+on:
+  push:
+    branches: [wp/1-swift-api]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.app/Contents/Developer
+      MACOSX_DEPLOYMENT_TARGET: '27.0'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Verify compiler and SDK
+        run: |
+          swift --version
+          test "$(sw_vers -productVersion | cut -d. -f1)" = 27
+          test "$(xcrun --sdk macosx --show-sdk-version | cut -d. -f1)" = 27
+          [[ "$(swift --version)" == *"Apple Swift version 6.4 "* ]]
+      - name: Build and run Swift Testing
+        run: swift test -Xswiftc -warnings-as-errors
